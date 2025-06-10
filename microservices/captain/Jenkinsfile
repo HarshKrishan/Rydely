@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+    tools {
+        go 'go' 
+    }
+    environment {
+        AWS_ACCOUNT_ID = '685294416972'
+        AWS_DEFAULT_REGION = 'ap-south-1'
+        ECR_REPO = '685294416972.dkr.ecr.ap-south-1.amazonaws.com'
+        DOCKER_IMAGE_NAME = 'user-service'
+        REPOSITORY = '685294416972.dkr.ecr.ap-south-1.amazonaws.com'
+    }
+
+    stages {
+         stage('Logging into AWS ECR') {
+            steps {
+                script {
+                    sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} |  docker login --username AWS --password-stdin ${REPOSITORY}"
+                }    
+            }
+        }
+
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    echo 'Pulling...' + GIT_BRANCH
+                    sh 'go version'
+                    if (GIT_BRANCH == "origin/release") {
+                        sh "make push_docker OWNER=prod APP_VERSION=v1.0.0"
+                    } else {
+                        sh "make push_docker OWNER=feature APP_VERSION=v1.0.0"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script{
+                BRANCH_NAME = env.GIT_BRANCH.replace('origin/', '')
+                def commitMessage = sh(script: 'git log --merges -1 --pretty=%B', returnStdout: true).trim()
+                def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                def prNumber = null
+                def prMatcher = commitMessage =~ /Merge pull request #(\d+)/
+                
+                if (prMatcher.find()) {
+                    prNumber = prMatcher[0][1] 
+                }
+
+                
+                if (prNumber) {
+                    currentBuild.displayName = "#${prNumber} | ${BRANCH_NAME} | ${commitHash}"
+                } else {
+                    currentBuild.displayName = "${BRANCH_NAME} | ${commitHash}"
+                }
+                
+                currentBuild.description = "Commit: ${commitMessage} (Branch: ${BRANCH_NAME})"
+            }
+        }
+    }
+}

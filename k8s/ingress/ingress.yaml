@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: POST,GET,PUT,PATCH,OPTIONS,DELETE
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/enable-underscores-in-headers: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  name: ingress-routes
+  namespace: staging
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: services.dev.rydely.in
+      http:
+        paths:
+          - backend:
+              service:
+                name: user-service
+                port:
+                  number: 8080
+            path: /user
+            pathType: ImplementationSpecific
+          - backend:
+              service:
+                name: ride-service
+                port:
+                  number: 8080
+            path: /ride
+            pathType: ImplementationSpecific
+          - backend:
+              service:
+                name: captain-service
+                port:
+                  number: 8080
+            path: /captain
+            pathType: ImplementationSpecific
